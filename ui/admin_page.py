@@ -10,7 +10,7 @@ import os, csv
 def open_admin_dashboard(root):
     root.withdraw()
     admin_win = tk.Toplevel()
-    admin_win.title("Boukunther Adda - Admin Dashboard")
+    admin_win.title("Boikunther Adda - Admin Dashboard")
     admin_win.geometry("800x400")
     admin_win.protocol("WM_DELETE_WINDOW", root.quit)
 
