@@ -3,18 +3,18 @@
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from PIL import Image, ImageTk, ImageFilter
-import os, tempfile, platform, csv
+import os, tempfile, platform, csv,time, win32printing, win32api, threading
 from reportlab.pdfgen import canvas as pdf_canvas
 from reportlab.lib.pagesizes import A4
 from datetime import datetime
-from utils.Shared_functions import record_daily_history_if_needed, execute_query
+from utils.Shared_functions import record_daily_history_if_needed, execute_query, resource_path
 
 
 def open_user_dashboard(root):
     root.withdraw()
     user_win = tk.Toplevel()
     user_win.title("Boikunther Adda - Billing")
-    user_win.geometry("1000x600")
+    user_win.geometry("1200x600")
     user_win.configure(bg="gray")
 
     selected_filter = tk.StringVar(value="")  # "", "veg", or "nonveg"
@@ -24,10 +24,10 @@ def open_user_dashboard(root):
     def open_stockout_window():
         stockout_win = tk.Toplevel(user_win)
         stockout_win.title("Mark Stock Out Items")
-        stockout_win.geometry("700x600")
+        stockout_win.geometry("850x600")
         stockout_win.configure(bg="white")
 
-        tk.Label(stockout_win, text="Manage Item Stock", font=("Arial", 14, "bold"), bg="white", fg="black").pack(pady=10)
+        tk.Label(stockout_win, text="Manage Item Stock", font=("Arial", 14, "bold"), bg="white").pack(pady=10)
 
         main_frame = tk.Frame(stockout_win, bg="white")
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10)
@@ -39,7 +39,7 @@ def open_user_dashboard(root):
             outer_frame = tk.Frame(parent, bg="white", bd=2, relief=tk.RIDGE)
             outer_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-            tk.Label(outer_frame, text=title, font=("Arial", 12, "bold"), bg="white", fg="black").pack(pady=5)
+            tk.Label(outer_frame, text=title, font=("Arial", 12, "bold"), bg="white").pack(pady=5)
 
             # --- Scrollable area setup ---
             scroll_frame_container = tk.Frame(outer_frame, bg="white")
@@ -94,13 +94,13 @@ def open_user_dashboard(root):
 
             for item_id, name in available_items:
                 var = tk.BooleanVar()
-                chk = tk.Checkbutton(avail_frame, text=name, variable=var, anchor="w", bg="white", fg="black")
+                chk = tk.Checkbutton(avail_frame, text=name, variable=var, anchor="w", bg="white")
                 chk.pack(fill=tk.X, padx=10, pady=2)
                 avail_vars[item_id] = var
 
             for item_id, name in stockout_items:
                 var = tk.BooleanVar()
-                chk = tk.Checkbutton(out_frame, text=name, variable=var, anchor="w", bg="white", fg="black")
+                chk = tk.Checkbutton(out_frame, text=name, variable=var, anchor="w", bg="white")
                 chk.pack(fill=tk.X, padx=10, pady=2)
                 stockout_vars[item_id] = var
 
@@ -135,7 +135,7 @@ def open_user_dashboard(root):
     # =============== LEFT PANEL (Items) ===============
     left_frame = tk.Frame(user_win, width=300, bg="white")
     left_frame.pack(side=tk.LEFT, fill=tk.Y)
-    tk.Label(left_frame, text="Today's item", font=("Arial", 16), bg="#f8f8f8", fg="black").pack(pady=5)
+    tk.Label(left_frame, text="Today's item", font=("Arial", 16), bg="#f8f8f8").pack(pady=5)
 
     # === Row 1: STOCK BUTTONS ===
     stock_btn_frame = tk.Frame(left_frame, bg="white")
@@ -224,11 +224,18 @@ def open_user_dashboard(root):
 
     scroll_frame.bind("<Configure>", on_configure)
 
+    def _on_mousewheel(event):
+        canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    # Bind properly — bind to scroll_frame (child of canvas), not whole root
+    scroll_frame.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", _on_mousewheel))
+    scroll_frame.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
+
     # ===================== CENTER PANEL (Cart) =====================
     center_frame = tk.Frame(user_win, width=400, bg="#f8f8f8")
     center_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-    tk.Label(center_frame, text="Cart", font=("Arial", 16), bg="#f8f8f8", fg="black").pack(pady=5)
+    tk.Label(center_frame, text="Cart", font=("Arial", 16), bg="#f8f8f8").pack(pady=5)
 
     # Heading row
     heading_frame = tk.Frame(center_frame, bg="#d0d0d0")
@@ -367,19 +374,20 @@ def open_user_dashboard(root):
 
         cart.append(cart_item)
         update_total()
-
+        cart_canvas.update_idletasks()
     # =============== RIGHT PANEL (Summary & Checkout) ===============
     right_frame = tk.Frame(user_win, width=300, bg="#e0e0e0")
     right_frame.pack(side=tk.RIGHT, fill=tk.Y)
 
-    tk.Label(right_frame, text="Summary", font=("Arial", 16), bg="#e0e0e0", fg="black").pack(pady=10)
+    tk.Label(right_frame, text="Summary", font=("Arial", 16), bg="#e0e0e0").pack(pady=10)
     summary_label = tk.Label(right_frame, text="Total: ₹0", font=("Arial", 14), bg="#e0e0e0")
     summary_label.pack(pady=10)
 
     # ======== Updating sales history========
+
     def update_item_history_csv(cart_items):
         today = datetime.now().strftime("%Y-%m-%d")
-        csv_file = "item_history.csv"
+        csv_file = resource_path("item_history.csv")
 
         if not os.path.exists(csv_file):
             messagebox.showwarning("CSV Not Found",
@@ -456,13 +464,13 @@ def open_user_dashboard(root):
         total = 0
         now = datetime.now()
         receipt_lines = []
-        receipt_lines.append("   BOIKUNTHER ADDA   ")
-        receipt_lines.append("    BILL OF SUPPLY    ")
+        receipt_lines.append("     BOIKUNTHER ADDA     ")
+        receipt_lines.append("     BILL OF SUPPLY      ")
         receipt_lines.append(now.strftime("Date: %Y-%m-%d"))
         receipt_lines.append(now.strftime("Time: %H:%M:%S"))
-        receipt_lines.append("-------------------------------")
+        receipt_lines.append("-" * 32)
         receipt_lines.append("{:<12} {:>3}x{:>5} {:>6}".format("Item", "Qty", "Rate", "Total"))
-        receipt_lines.append("-------------------------------")
+        receipt_lines.append("-" * 32)
 
         history_cart = []
         for item in cart:
@@ -471,7 +479,7 @@ def open_user_dashboard(root):
             except ValueError:
                 qty = 1
 
-            name = item['name'][:12]  # Trim to fit
+            name = item['name'][:12]  # Trim name to 12 chars
             price = item['price']
             subtotal = price * qty
             total += subtotal
@@ -482,17 +490,32 @@ def open_user_dashboard(root):
                 "quantity": qty
             })
 
-        receipt_lines.append("-------------------------------")
+        receipt_lines.append("-" * 32)
         receipt_lines.append("TOTAL: {:>22.0f}".format(total))
-        receipt_lines.append("-------------------------------")
+        receipt_lines.append("-" * 32)
         receipt_lines.append("   Thank You! Visit Again!   ")
 
         receipt_text = "\n".join(receipt_lines)
 
-        # ✅ Show in a custom popup
+        # ✅ Show popup
         show_receipt_popup(receipt_text)
 
-        # ✅ Update item history CSV
+       # ✅ Save to a permanent temporary file (outside auto-deletion risk)
+        try:
+            # Manually create a temp path
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, "boikunther_receipt.txt")
+
+            with open(temp_path, "w", encoding="utf-8") as f:
+                f.write(receipt_text)
+            time.sleep(1)
+            # ✅ Print using Notepad
+            os.system(f'notepad /p "{temp_path}"')
+
+        except Exception as e:
+            messagebox.showerror("Print Error", f"Could not print receipt:\n{e}")
+
+        # ✅ Update CSV
         update_item_history_csv(history_cart)
 
         # ✅ Clear cart
@@ -534,20 +557,33 @@ def open_user_dashboard(root):
 
             system = platform.system()
             if system == "Windows":
-                os.startfile(tmp_path, "print")
+                win32api.ShellExecute(
+                    0,
+                    "print",
+                    tmp_path,
+                    None,
+                    ".",
+                    0
+                )
             elif system == "Darwin":  # macOS
                 os.system(f"lp -o raw '{tmp_path}'")
             elif system == "Linux":
                 os.system(f"lpr -o raw '{tmp_path}'")
             else:
                 messagebox.showerror("Print Error", "Unsupported OS for printing.")
+
+            # Delay file deletion
+            def delayed_delete(path):
+                time.sleep(15)
+                try:
+                    os.remove(path)
+                except:
+                    pass
+
+            threading.Thread(target=delayed_delete, args=(tmp_path,)).start()
+
         except Exception as e:
             messagebox.showerror("Print Error", f"Failed to print:\n{str(e)}")
-        finally:
-            try:
-                os.remove(tmp_path)
-            except Exception:
-                pass  # If delete fails, ignore
 
     def save_as_pdf(text):
         file_path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF files", "*.pdf")])
@@ -593,13 +629,13 @@ def open_user_dashboard(root):
                 filtered_items.append(item)
 
         def load_placeholder_image():
-            img = Image.open("images/Logo.png").resize((100, 100))
+            img = Image.open(resource_path("images/Logo.png")).resize((100, 100))
             blurred_img = img.filter(ImageFilter.GaussianBlur(radius=2))
             return ImageTk.PhotoImage(blurred_img)
 
         image_refs.clear()
         photo = load_placeholder_image()  # Load once
-        columns = 2
+        columns = 3
         for idx, (item_id, name, price, category) in enumerate(filtered_items):
             try:
                 image_refs.append(photo)

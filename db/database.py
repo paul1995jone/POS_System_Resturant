@@ -6,7 +6,7 @@ def init_db():
     # if os.path.exists("restaurant.db"):
     #     os.remove("restaurant.db")
 
-    conn = sqlite3.connect("restaurant.db")
+    conn = sqlite3.connect("resturant.db")
     cursor = conn.cursor()
 
     # ✅ Create tables only if they don't exist

@@ -1,11 +1,15 @@
-import os, csv
+import os, csv, sys
 from datetime import datetime
 import tkinter as tk
 import sqlite3
 from tkinter import messagebox
 
-CSV_FILE = "Item_history.csv"
-
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS  # When running from .exe
+    except AttributeError:
+        base_path = os.path.abspath(".")  # When running normally
+    return os.path.join(base_path, relative_path)
 
 def get_occasion_and_weather():
     def on_submit():
@@ -36,7 +40,7 @@ def get_occasion_and_weather():
     popup.wait_window()  # Wait until the window is closed
     return occasion_value, weather_value
 
-
+CSV_FILE = resource_path("Item_history.csv")
 def add_today_entry():
     today = datetime.now().date().isoformat()
     occasion, weather = get_occasion_and_weather()
@@ -94,8 +98,9 @@ def execute_query(query, params=None, fetch=False, fetchone=False, commit=False,
         List/tuple of results or None.
     """
     result = None
+
     try:
-        with sqlite3.connect("restaurant.db") as conn:
+        with sqlite3.connect(resource_path("resturant.db")) as conn:
             cursor = conn.cursor()
             if many and params:
                 cursor.executemany(query, params)
@@ -112,5 +117,6 @@ def execute_query(query, params=None, fetch=False, fetchone=False, commit=False,
             elif fetchone:
                 result = cursor.fetchone()
     except sqlite3.Error as e:
-        messagebox.showwarning(f"Database error contact to Subrata pal: {e}")
+        messagebox.showwarning(f"{e}")
     return result
+

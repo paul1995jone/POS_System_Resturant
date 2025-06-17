@@ -3,7 +3,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import sqlite3
-from utils.Shared_functions import execute_query
+from utils.Shared_functions import execute_query, resource_path
 import os, csv
 
 
@@ -48,7 +48,7 @@ def open_admin_dashboard(root):
     load_items()
 
     # csv file related things
-    CSV_FILE = "Item_history.csv"
+    CSV_FILE = resource_path("Item_history.csv")
     FIXED_HEADERS = ["Serial No", "Date", "Occasion", "Weather"]
 
     def ensure_csv_headers_exist():

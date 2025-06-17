@@ -30,7 +30,7 @@ def check_credentials(username, password, root):
 
 def open_login_window():
     root = tk.Tk()
-    root.title("Boukunther Adda Billing System - Login")
+    root.title("Boikunther Adda Billing System - Login")
     root.geometry("400x200")
 
     tk.Label(root, text="Username:").pack(pady=5)
